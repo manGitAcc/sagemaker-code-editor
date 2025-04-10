@@ -6,7 +6,6 @@
 import { env } from 'vs/base/common/process';
 import { IProductConfiguration } from 'vs/base/common/product';
 import { ISandboxConfiguration } from 'vs/base/parts/sandbox/common/sandboxTypes';
-import { parseExtensionsGalleryEnv } from 'vs/platform/product/common/marketplace';
 
 /**
  * @deprecated You MUST use `IProductService` if possible.
@@ -72,20 +71,6 @@ else {
 			licenseUrl: 'https://github.com/microsoft/vscode/blob/main/LICENSE.txt',
 			serverLicenseUrl: 'https://github.com/microsoft/vscode/blob/main/LICENSE.txt',
 		});
-	}
-}
-
-// Support custom extensions marketplace
-if (typeof env['EXTENSIONS_GALLERY'] !== 'undefined') {
-	console.log(`Custom marketplace env found. Parsing...`);
-
-	try {
-		Object.assign(product, {
-			extensionsGallery: parseExtensionsGalleryEnv(env['EXTENSIONS_GALLERY'])
-		});
-	} catch (error) {
-		console.error(error);
-		console.info('Check that your env var is valid JSON and conforms to `IProductConfiguration[\'extensionsGallery\']`>');
 	}
 }
 
