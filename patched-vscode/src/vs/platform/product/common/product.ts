@@ -6,6 +6,7 @@
 import { env } from 'vs/base/common/process';
 import { IProductConfiguration } from 'vs/base/common/product';
 import { ISandboxConfiguration } from 'vs/base/parts/sandbox/common/sandboxTypes';
+import { parseExtensionsGalleryEnv } from 'vs/platform/product/common/marketplace';
 
 /**
  * @deprecated You MUST use `IProductService` if possible.

@@ -64,6 +64,8 @@ import { ILocalizedString } from 'vs/platform/action/common/action';
 import { registerNavigableContainer } from 'vs/workbench/browser/actions/widgetNavigationCommands';
 import { MenuWorkbenchToolBar } from 'vs/platform/actions/browser/toolbar';
 import { createActionViewItem } from 'vs/platform/actions/browser/menuEntryActionViewItem';
+import { IProductService } from 'vs/platform/product/common/productService';
+import { memoize } from 'vs/base/common/decorators';
 
 export const DefaultViewsContext = new RawContextKey<boolean>('defaultExtensionViews', true);
 export const ExtensionsSortByContext = new RawContextKey<string>('extensionsSortByValue', '');
@@ -87,19 +89,22 @@ const SortByUpdateDateContext = new RawContextKey<boolean>('sortByUpdateDate', f
 const REMOTE_CATEGORY: ILocalizedString = localize2({ key: 'remote', comment: ['Remote as in remote machine'] }, "Remote");
 
 export class ExtensionsViewletViewsContribution extends Disposable implements IWorkbenchContribution {
-
+	static EXTENSION_RECOMMENDATION_KEY = 'EXTENSION_RECOMMENDATION_KEY';
 	private readonly container: ViewContainer;
 
 	constructor(
 		@IExtensionManagementServerService private readonly extensionManagementServerService: IExtensionManagementServerService,
 		@ILabelService private readonly labelService: ILabelService,
 		@IViewDescriptorService viewDescriptorService: IViewDescriptorService,
-		@IContextKeyService private readonly contextKeyService: IContextKeyService
+		@IContextKeyService private readonly contextKeyService: IContextKeyService,
+		@IProductService private readonly _productService: IProductService,
 	) {
 		super();
 
 		this.container = viewDescriptorService.getViewContainerById(VIEWLET_ID)!;
 		this.registerViews();
+
+		this.contextKeyService.createKey(ExtensionsViewletViewsContribution.EXTENSION_RECOMMENDATION_KEY, !!this._productService.extensionsGallery?.recommendationsUrl);
 	}
 
 	private registerViews(): void {
@@ -238,7 +243,7 @@ export class ExtensionsViewletViewsContribution extends Disposable implements IW
 			id: 'extensions.recommendedList',
 			name: localize2('recommendedExtensions', "Recommended"),
 			ctorDescriptor: new SyncDescriptor(DefaultRecommendedExtensionsView, [{ flexibleHeight: true }]),
-			when: ContextKeyExpr.and(DefaultViewsContext, SortByUpdateDateContext.negate(), ContextKeyExpr.not('config.extensions.showRecommendationsOnlyOnDemand'), CONTEXT_HAS_GALLERY),
+			when: ContextKeyExpr.and(DefaultViewsContext, SortByUpdateDateContext.negate(), ContextKeyExpr.not('config.extensions.showRecommendationsOnlyOnDemand'), CONTEXT_HAS_GALLERY, ContextKeyExpr.has(ExtensionsViewletViewsContribution.EXTENSION_RECOMMENDATION_KEY)),
 			weight: 40,
 			order: 3,
 			canToggleVisibility: true
@@ -516,7 +521,8 @@ export class ExtensionsViewPaneContainer extends ViewPaneContainer implements IE
 		@IExtensionService extensionService: IExtensionService,
 		@IViewDescriptorService viewDescriptorService: IViewDescriptorService,
 		@IPreferencesService private readonly preferencesService: IPreferencesService,
-		@ICommandService private readonly commandService: ICommandService
+		@ICommandService private readonly commandService: ICommandService,
+		@IProductService private readonly _productService: IProductService,
 	) {
 		super(VIEWLET_ID, { mergeViewWithContainerWhenSingleView: true }, instantiationService, configurationService, layoutService, contextMenuService, telemetryService, extensionService, themeService, storageService, contextService, viewDescriptorService);
 
@@ -544,6 +550,16 @@ export class ExtensionsViewPaneContainer extends ViewPaneContainer implements IE
 		this.searchViewletState = this.getMemento(StorageScope.WORKSPACE, StorageTarget.MACHINE);
 	}
 
+	@memoize
+	get marketplaceHostname(): string {
+
+		if (this._productService.extensionsGallery?.serviceUrl) {
+			return new URL(this._productService.extensionsGallery?.serviceUrl).hostname;
+		}
+
+		return 'Marketplace';
+	}
+
 	get searchValue(): string | undefined {
 		return this.searchBox?.getValue();
 	}
@@ -558,8 +574,7 @@ export class ExtensionsViewPaneContainer extends ViewPaneContainer implements IE
 		hide(overlay);
 
 		const header = append(this.root, $('.header'));
-		const placeholder = localize('searchExtensions', "Search Extensions in Marketplace");
-
+		const placeholder = localize('searchExtensions', 'Search Extensions on {0}', this.marketplaceHostname);
 		const searchValue = this.searchViewletState['query.value'] ? this.searchViewletState['query.value'] : '';
 
 		const searchContainer = append(header, $('.extensions-search-container'));
