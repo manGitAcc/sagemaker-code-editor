@@ -2,7 +2,7 @@ Index: sagemaker-code-editor/vscode/src/vs/platform/product/common/marketplace.t
 ===================================================================
 --- /dev/null
 +++ sagemaker-code-editor/vscode/src/vs/platform/product/common/marketplace.ts
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,25 @@
 +/*---------------------------------------------------------------------------------------------
 +*  Copyright (c) Coder Technologies. All rights reserved.
 +*  Licensed under the MIT License. See License.txt in the project root for license information.
@@ -25,7 +25,6 @@ Index: sagemaker-code-editor/vscode/src/vs/platform/product/common/marketplace.t
 +    itemUrl: '',
 +    resourceUrlTemplate: '',
 +    controlUrl: '',
-+    recommendationsUrl: '',
 +    ...JSON.parse(extensionsGalleryEnv),
 +};
 +}
@@ -78,12 +77,11 @@ Index: sagemaker-code-editor/vscode/src/vs/workbench/contrib/extensions/browser/
  
  export const DefaultViewsContext = new RawContextKey<boolean>('defaultExtensionViews', true);
  export const ExtensionsSortByContext = new RawContextKey<string>('extensionsSortByValue', '');
-@@ -87,19 +89,22 @@ const SortByUpdateDateContext = new RawC
+@@ -87,14 +89,13 @@ const SortByUpdateDateContext = new RawC
  const REMOTE_CATEGORY: ILocalizedString = localize2({ key: 'remote', comment: ['Remote as in remote machine'] }, "Remote");
  
  export class ExtensionsViewletViewsContribution extends Disposable implements IWorkbenchContribution {
 -
-+	static EXTENSION_RECOMMENDATION_KEY = 'EXTENSION_RECOMMENDATION_KEY';
  	private readonly container: ViewContainer;
  
  	constructor(
@@ -92,45 +90,27 @@ Index: sagemaker-code-editor/vscode/src/vs/workbench/contrib/extensions/browser/
  		@IViewDescriptorService viewDescriptorService: IViewDescriptorService,
 -		@IContextKeyService private readonly contextKeyService: IContextKeyService
 +		@IContextKeyService private readonly contextKeyService: IContextKeyService,
-+		@IProductService private readonly _productService: IProductService,
  	) {
  		super();
  
- 		this.container = viewDescriptorService.getViewContainerById(VIEWLET_ID)!;
- 		this.registerViews();
-+
-+		this.contextKeyService.createKey(ExtensionsViewletViewsContribution.EXTENSION_RECOMMENDATION_KEY, !!this._productService.extensionsGallery?.recommendationsUrl);
- 	}
- 
- 	private registerViews(): void {
-@@ -238,7 +243,7 @@ export class ExtensionsViewletViewsContr
- 			id: 'extensions.recommendedList',
- 			name: localize2('recommendedExtensions', "Recommended"),
- 			ctorDescriptor: new SyncDescriptor(DefaultRecommendedExtensionsView, [{ flexibleHeight: true }]),
--			when: ContextKeyExpr.and(DefaultViewsContext, SortByUpdateDateContext.negate(), ContextKeyExpr.not('config.extensions.showRecommendationsOnlyOnDemand'), CONTEXT_HAS_GALLERY),
-+			when: ContextKeyExpr.and(DefaultViewsContext, SortByUpdateDateContext.negate(), ContextKeyExpr.not('config.extensions.showRecommendationsOnlyOnDemand'), CONTEXT_HAS_GALLERY, ContextKeyExpr.has(ExtensionsViewletViewsContribution.EXTENSION_RECOMMENDATION_KEY)),
- 			weight: 40,
- 			order: 3,
- 			canToggleVisibility: true
-@@ -516,7 +521,8 @@ export class ExtensionsViewPaneContainer
+@@ -516,7 +517,8 @@ export class ExtensionsViewPaneContainer
  		@IExtensionService extensionService: IExtensionService,
  		@IViewDescriptorService viewDescriptorService: IViewDescriptorService,
  		@IPreferencesService private readonly preferencesService: IPreferencesService,
 -		@ICommandService private readonly commandService: ICommandService
 +		@ICommandService private readonly commandService: ICommandService,
-+		@IProductService private readonly _productService: IProductService,
++		@IProductService private readonly productService: IProductService,
  	) {
  		super(VIEWLET_ID, { mergeViewWithContainerWhenSingleView: true }, instantiationService, configurationService, layoutService, contextMenuService, telemetryService, extensionService, themeService, storageService, contextService, viewDescriptorService);
  
-@@ -544,6 +550,16 @@ export class ExtensionsViewPaneContainer
+@@ -544,6 +546,15 @@ export class ExtensionsViewPaneContainer
  		this.searchViewletState = this.getMemento(StorageScope.WORKSPACE, StorageTarget.MACHINE);
  	}
  
 +	@memoize
 +	get marketplaceHostname(): string {
-+
-+		if (this._productService.extensionsGallery?.serviceUrl) {
-+			return new URL(this._productService.extensionsGallery?.serviceUrl).hostname;
++		if (this.productService.extensionsGallery?.serviceUrl) {
++			return new URL(this.productService.extensionsGallery?.serviceUrl).hostname;
 +		}
 +
 +		return 'Marketplace';
@@ -139,7 +119,7 @@ Index: sagemaker-code-editor/vscode/src/vs/workbench/contrib/extensions/browser/
  	get searchValue(): string | undefined {
  		return this.searchBox?.getValue();
  	}
-@@ -558,8 +574,7 @@ export class ExtensionsViewPaneContainer
+@@ -558,8 +569,7 @@ export class ExtensionsViewPaneContainer
  		hide(overlay);
  
  		const header = append(this.root, $('.header'));
@@ -149,7 +129,7 @@ Index: sagemaker-code-editor/vscode/src/vs/workbench/contrib/extensions/browser/
  		const searchValue = this.searchViewletState['query.value'] ? this.searchViewletState['query.value'] : '';
  
  		const searchContainer = append(header, $('.extensions-search-container'));
-@@ -924,4 +939,4 @@ export class MaliciousExtensionChecker i
+@@ -924,4 +934,4 @@ export class MaliciousExtensionChecker i
  			}).then(() => undefined);
  		}, err => this.logService.error(err));
  	}
